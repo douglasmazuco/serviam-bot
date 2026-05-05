@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
-    "puppeteer": "^22.0.0"
+    "puppeteer": "^24.0.0"
   }
 }
