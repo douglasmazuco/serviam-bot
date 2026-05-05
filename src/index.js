@@ -1,5 +1,6 @@
 import { fetchNews } from './fetch-news.js';
 import { generateContent } from './generate-content.js';
+import { fetchImages } from './fetch-images.js';
 import { createImages } from './create-images.js';
 import { uploadImages } from './upload-images.js';
 import { postCarousel } from './post-instagram.js';
@@ -11,19 +12,25 @@ async function main() {
   console.log(`Modo: ${DRY_RUN ? 'DRY RUN' : 'PRODUÇÃO'}`);
   console.log(`Data: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}\n`);
 
-  console.log('[1/5] Buscando notícia do dia...');
-  const news = await fetchNews();
-  console.log(`  Notícia: ${news.title}`);
-  console.log(`  Fonte: ${news.source?.name || 'desconhecida'}\n`);
+  console.log('[1/6] Buscando notícias do dia...');
+  const articles = await fetchNews();
+  console.log(`  ${articles.length} artigos encontrados\n`);
 
-  console.log('[2/5] Gerando conteúdo com Claude...');
-  const content = await generateContent(news);
+  console.log('[2/6] Selecionando melhor notícia e gerando conteúdo com Claude...');
+  const content = await generateContent(articles);
+  console.log(`  Notícia escolhida: ${content.selectedArticle.title}`);
   console.log(`  Slides: ${content.slides.length}`);
   console.log(`  Caption: ${content.caption}\n`);
 
-  console.log('[3/5] Criando imagens dos slides...');
-  const imagePaths = await createImages(content.slides);
-  console.log(`  ${imagePaths.length} imagens geradas\n`);
+  console.log('[3/6] Baixando imagens de fundo...');
+  const images = await fetchImages(content.selectedArticle);
+  console.log(`  Cover: ${images.cover ? 'OK' : 'fallback gradient'}`);
+  console.log(`  Barroco 1: ${images.baroque1 ? 'OK' : 'fallback gradient'}`);
+  console.log(`  Barroco 2: ${images.baroque2 ? 'OK' : 'fallback gradient'}\n`);
+
+  console.log('[4/6] Criando imagens dos slides...');
+  const imagePaths = await createImages(content.slides, images);
+  console.log(`  ${imagePaths.length} slides gerados\n`);
 
   if (DRY_RUN) {
     console.log('DRY RUN concluído. Imagens salvas em:');
@@ -31,11 +38,11 @@ async function main() {
     return;
   }
 
-  console.log('[4/5] Fazendo upload das imagens...');
+  console.log('[5/6] Fazendo upload das imagens...');
   const imageUrls = await uploadImages(imagePaths);
   console.log(`  ${imageUrls.length} imagens enviadas\n`);
 
-  console.log('[5/5] Postando no Instagram...');
+  console.log('[6/6] Postando no Instagram...');
   const caption = `${content.caption}\n\n${content.hashtags}`;
   const postId = await postCarousel(imageUrls, caption);
 
