@@ -30,6 +30,7 @@ export async function postCarousel(imageUrls, caption) {
   const containerIds = [];
   for (const url of imageUrls) {
     const id = await apiPost(`/${userId}/media`, {
+      media_type: 'IMAGE',
       image_url: url,
       is_carousel_item: 'true',
       access_token: token,
