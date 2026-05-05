@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer';
-import { mkdirSync, readFileSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const FONTS_URL = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=Inter:wght@300;400;600&display=swap';
@@ -20,7 +20,7 @@ const BASE_STYLE = `
   }
   .bg-overlay {
     position: absolute; inset: 0;
-    background: linear-gradient(160deg, rgba(5,1,8,0.82) 0%, rgba(30,6,32,0.78) 50%, rgba(8,1,12,0.85) 100%);
+    background: linear-gradient(160deg, rgba(5,1,8,0.80) 0%, rgba(30,6,32,0.75) 50%, rgba(8,1,12,0.83) 100%);
   }
   .bg-dark {
     position: absolute; inset: 0;
@@ -36,41 +36,25 @@ const BASE_STYLE = `
   .slide-label { font-size: 13px; letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,255,255,0.28); margin-bottom: 8px; }
   .news-title { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; color: #C9A227; margin-bottom: 28px; line-height: 1.2; }
   .subtitle { font-family: 'Playfair Display', serif; font-size: 34px; color: #C9A227; margin-bottom: 28px; line-height: 1.2; }
-  .body-text { font-size: 30px; font-weight: 300; line-height: 1.72; color: rgba(255,255,255,0.88); }
+  .body-text { font-size: 29px; font-weight: 300; line-height: 1.72; color: rgba(255,255,255,0.88); }
   .quote { font-family: 'Playfair Display', serif; font-size: 44px; font-style: italic; font-weight: 400; line-height: 1.38; color: rgba(255,255,255,0.94); }
   .quote-source { margin-top: 24px; font-size: 19px; color: #C9A227; letter-spacing: 0.08em; }
-  .cta-text { font-size: 21px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; margin-top: 12px; }
+  .cta-text { font-size: 20px; color: rgba(255,255,255,0.5); letter-spacing: 0.04em; margin-top: 14px; }
 `;
 
-function toDataUri(filePath) {
-  if (!filePath || !existsSync(filePath)) return null;
-  const data = readFileSync(filePath).toString('base64');
-  const ext = filePath.split('.').pop().toLowerCase();
-  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-  return `data:${mime};base64,${data}`;
-}
-
-function background(imagePath) {
-  const uri = toDataUri(imagePath);
-  if (uri) {
-    return `<div class="bg" style="background-image:url('${uri}')"></div><div class="bg-overlay"></div>`;
-  }
-  return `<div class="bg-dark"></div>`;
-}
-
-function html(bodyContent) {
-  return `<!DOCTYPE html><html><head>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="${FONTS_URL}" rel="stylesheet">
-    <style>${BASE_STYLE}</style>
-  </head><body><div class="slide">${bodyContent}</div></body></html>`;
+// Use file:// URL for local images so Puppeteer resolves them correctly
+function bgStyle(imagePath) {
+  if (imagePath) return `background-image:url('file://${imagePath}')`;
+  return '';
 }
 
 function renderSlide(slide, images) {
   if (slide.type === 'cover') {
-    return html(`
-      ${background(images.cover)}
+    const hasCover = !!images.cover;
+    return `
+      ${hasCover
+        ? `<div class="bg" style="${bgStyle(images.cover)}"></div><div class="bg-overlay"></div>`
+        : `<div class="bg-dark"></div>`}
       <div class="content">
         <div><span class="tag">${slide.category}</span></div>
         <div>
@@ -81,12 +65,12 @@ function renderSlide(slide, images) {
           <div class="branding">SERVIAM</div>
           <div class="badge">@serviam.ag</div>
         </div>
-      </div>`);
+      </div>`;
   }
 
   if (slide.type === 'news') {
-    return html(`
-      ${background(null)}
+    return `
+      <div class="bg-dark"></div>
       <div class="content">
         <div><div class="slide-label">${slide.label}</div></div>
         <div>
@@ -94,12 +78,15 @@ function renderSlide(slide, images) {
           <div class="body-text">${slide.text}</div>
         </div>
         <div class="branding" style="opacity:0.22">SERVIAM.AG</div>
-      </div>`);
+      </div>`;
   }
 
   if (slide.type === 'insight') {
-    return html(`
-      ${background(images.baroque1)}
+    const hasBg = !!images.baroque1;
+    return `
+      ${hasBg
+        ? `<div class="bg" style="${bgStyle(images.baroque1)}"></div><div class="bg-overlay"></div>`
+        : `<div class="bg-dark"></div>`}
       <div class="content">
         <div><div class="slide-label">${slide.label}</div></div>
         <div>
@@ -107,12 +94,12 @@ function renderSlide(slide, images) {
           <div class="body-text">${slide.text}</div>
         </div>
         <div class="branding" style="opacity:0.22">SERVIAM.AG</div>
-      </div>`);
+      </div>`;
   }
 
   if (slide.type === 'catholic') {
-    return html(`
-      ${background(null)}
+    return `
+      <div class="bg-dark"></div>
       <div class="content">
         <div>
           <div class="slide-label">${slide.label}</div>
@@ -123,12 +110,15 @@ function renderSlide(slide, images) {
           <div class="body-text">${slide.text}</div>
         </div>
         <div class="branding" style="opacity:0.22">SERVIAM.AG</div>
-      </div>`);
+      </div>`;
   }
 
   if (slide.type === 'reflection') {
-    return html(`
-      ${background(images.baroque2)}
+    const hasBg = !!images.baroque2;
+    return `
+      ${hasBg
+        ? `<div class="bg" style="${bgStyle(images.baroque2)}"></div><div class="bg-overlay"></div>`
+        : `<div class="bg-dark"></div>`}
       <div class="content">
         <div><span class="tag">${slide.label}</span></div>
         <div>
@@ -141,10 +131,19 @@ function renderSlide(slide, images) {
           <div class="branding">SERVIAM</div>
           <div class="handle">@serviam.ag ✦</div>
         </div>
-      </div>`);
+      </div>`;
   }
 
   throw new Error(`Tipo de slide desconhecido: ${slide.type}`);
+}
+
+function wrapHtml(body) {
+  return `<!DOCTYPE html><html><head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="${FONTS_URL}" rel="stylesheet">
+    <style>${BASE_STYLE}</style>
+  </head><body><div class="slide">${body}</div></body></html>`;
 }
 
 export async function createImages(slides, images) {
@@ -153,7 +152,7 @@ export async function createImages(slides, images) {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--allow-file-access-from-files'],
   });
 
   const paths = [];
@@ -161,7 +160,13 @@ export async function createImages(slides, images) {
   for (let i = 0; i < slides.length; i++) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 });
-    await page.setContent(renderSlide(slides[i], images), { waitUntil: 'networkidle0', timeout: 30000 });
+
+    // Save HTML to disk so file:// image paths resolve correctly
+    const htmlContent = wrapHtml(renderSlide(slides[i], images));
+    const htmlPath = join(outputDir, `slide_${i + 1}.html`);
+    writeFileSync(htmlPath, htmlContent, 'utf8');
+
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
     await page.evaluate(() => document.fonts.ready);
 
     const outputPath = join(outputDir, `slide_${i + 1}.png`);
